@@ -5,9 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#000000">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="每日盈亏">
 <title>每日盈亏记录</title>
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -33,20 +31,6 @@
     overscroll-behavior-y:contain;
   }
   .app{width:100%;max-width:520px;}
-
-  /* 备份提醒横幅 */
-  .backupBanner{
-    display:none; align-items:center;gap:10px;
-    background:rgba(227,179,65,.12);border:1px solid rgba(227,179,65,.4);
-    border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:13px;line-height:1.4;
-  }
-  .backupBanner.show{display:flex;}
-  .backupBanner .btext{flex:1;color:var(--gold);}
-  .backupBanner button{
-    flex:none;background:var(--gold);color:#1a1205;border:none;border-radius:9px;
-    padding:8px 12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;
-  }
-  .backupBanner button:active{filter:brightness(1.1);}
 
   .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 4px;}
   h1{font-size:19px;margin:0;letter-spacing:.5px;}
@@ -159,17 +143,10 @@
     .cell .d{font-size:10px;}
     .toolbar button{font-size:13px;min-height:44px;}
   }
-  @media (min-width:600px){
-    .modal-backdrop{align-items:center;padding:20px;}
-    .modal{max-width:360px;border-radius:16px;border-bottom:1px solid var(--line);padding:18px;animation:pop .18s ease-out;}
-    .grabber{display:none;}
-    @keyframes pop{from{transform:scale(.94);opacity:0;}to{transform:scale(1);opacity:1;}}
-  }
 </style>
 </head>
 <body>
 <div class="app">
-
   <div class="topbar">
     <div>
       <h1>每日盈亏</h1>
@@ -205,13 +182,12 @@
 <div class="toast" id="toast"></div>
 
 <div class="modal-backdrop" id="modal" hidden>
-  <div class="modal" id="sheet" role="dialog" aria-modal="true" aria-labelledby="modalDate">
+  <div class="modal" id="sheet" role="dialog" aria-modal="true">
     <div class="grabber"></div>
     <div class="modal-date" id="modalDate"></div>
     <div class="inputrow">
-      <input id="amountInput" type="text" inputmode="decimal" placeholder="0.00"
-             autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="done">
-      <button class="signbtn" id="signBtn" type="button" title="正负切换">±</button>
+      <input id="amountInput" type="text" inputmode="decimal" placeholder="0.00" autocomplete="off" spellcheck="false" enterkeyhint="done">
+      <button class="signbtn" id="signBtn" type="button">±</button>
     </div>
     <div class="hint" id="hintEl">正数为赢 · 负数为输</div>
     <div class="actions">
@@ -227,10 +203,7 @@
   'use strict';
 
   var KEY = 'dailyWinLoss.v1';
-  var BACKUP_TS_KEY = 'dailyWinLoss.lastBackup';
-  var CHANGE_TS_KEY = 'dailyWinLoss.lastChange';
   var HINT = '正数为赢 · 负数为输';
-  var BACKUP_REMIND_DAYS = 5;
 
   var gridEl       = document.getElementById('grid');
   var monthLabel   = document.getElementById('monthLabel');
@@ -254,51 +227,7 @@
   var fileInput    = document.getElementById('fileInput');
   var storageTip   = document.getElementById('storageTip');
   var toastEl      = document.getElementById('toast');
-  var banner       = document.getElementById('backupBanner');
-  var bannerText   = document.getElementById('bannerText');
-  var bannerBtn    = document.getElementById('bannerBtn');
 
-  /* ---------- PWA manifest（动态生成，兼容 data/blob 限制） ---------- */
-  (function setupManifest() {
-    try {
-      var iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">' +
-        '<rect width="512" height="512" rx="108" fill="#0d1117"/>' +
-        '<rect x="96" y="128" width="320" height="288" rx="36" fill="#1b222c" stroke="#e3b341" stroke-width="12"/>' +
-        '<rect x="96" y="128" width="320" height="72" rx="36" fill="#e3b341"/>' +
-        '<text x="256" y="330" font-family="Arial,Helvetica,sans-serif" font-size="132" font-weight="700" fill="#3fb950" text-anchor="middle">+</text>' +
-        '<text x="256" y="392" font-family="Arial,Helvetica,sans-serif" font-size="44" fill="#8b949e" text-anchor="middle">盈亏</text>' +
-        '</svg>';
-      var iconUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(iconSvg);
-
-      var manifest = {
-        name: '每日盈亏记录',
-        short_name: '每日盈亏',
-        description: '日历式每日盈亏记录，本地保存，可备份导出',
-        start_url: '.',
-        scope: '.',
-        display: 'standalone',
-        orientation: 'portrait',
-        background_color: '#0d1117',
-        theme_color: '#0d1117',
-        icons: [
-          { src: iconUrl, sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
-          { src: iconUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any' }
-        ]
-      };
-      var blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
-      var link = document.createElement('link');
-      link.rel = 'manifest';
-      link.href = URL.createObjectURL(blob);
-      document.head.appendChild(link);
-
-      var appleIcon = document.createElement('link');
-      appleIcon.rel = 'apple-touch-icon';
-      appleIcon.href = iconUrl;
-      document.head.appendChild(appleIcon);
-    } catch (e) {}
-  })();
-
-  /* ---------- 数据 ---------- */
   var data = {};
   try {
     var raw = localStorage.getItem(KEY);
@@ -309,13 +238,9 @@
   } catch (e) { data = {}; }
 
   function persist() {
-    try {
-      localStorage.setItem(KEY, JSON.stringify(data));
-      localStorage.setItem(CHANGE_TS_KEY, String(Date.now()));
-    } catch (e) {}
+    try { localStorage.setItem(KEY, JSON.stringify(data)); } catch (e) {}
   }
 
-  /* ---------- 工具 ---------- */
   var now = new Date();
   var viewYear = now.getFullYear();
   var viewMonth = now.getMonth();
@@ -323,7 +248,6 @@
   function pad2(n) { return n < 10 ? '0' + n : '' + n; }
   function dateKey(y, m, d) { return y + '-' + pad2(m + 1) + '-' + pad2(d); }
   function round2(n) { return Math.round(n * 100) / 100; }
-  function daysBetween(a, b) { return Math.floor((a - b) / 86400000); }
 
   function parseAmount(str) {
     var s = String(str).replace(/[\s,，]/g, '');
@@ -334,9 +258,7 @@
 
   function fmtNum(n) {
     var abs = Math.abs(n);
-    var s = Number.isInteger(abs)
-      ? abs.toLocaleString('en-US')
-      : abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    var s = Number.isInteger(abs) ? abs.toLocaleString('en-US') : abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return (n > 0 ? '+' : n < 0 ? '-' : '') + s;
   }
 
@@ -344,10 +266,10 @@
     var len = el.textContent.length;
     var narrow = window.innerWidth < 380;
     var size;
-    if (len >= 9)      size = narrow ? 8   : 9;
+    if (len >= 9) size = narrow ? 8 : 9;
     else if (len >= 7) size = narrow ? 9.5 : 10.5;
-    else if (len >= 5) size = narrow ? 11  : 12;
-    else               size = narrow ? 12  : 13;
+    else if (len >= 5) size = narrow ? 11 : 12;
+    else size = narrow ? 12 : 13;
     el.style.fontSize = size + 'px';
   }
 
@@ -366,66 +288,6 @@
     toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2600);
   }
 
-  /* ---------- 备份提醒 ---------- */
-  function countRecords() {
-    var c = 0;
-    for (var k in data) {
-      if (!Object.prototype.hasOwnProperty.call(data, k)) continue;
-      var v = Number(data[k]);
-      if (isFinite(v) && v !== 0) c++;
-    }
-    return c;
-  }
-
-  function updateBackupBanner() {
-  }
-
-  /* ---------- 防清理保护 ---------- */
-  var persistGranted = false;
-  var persistTried = false;
-
-  function updateStorageTip() {
-    var supported = !!(navigator.storage && navigator.storage.persist);
-    if (!supported) {
-      storageTip.textContent = '⚠ 此浏览器不支持防清理保护 · 请用「导出备份」保存数据';
-      storageTip.className = 'storageTip warn';
-      storageTip.onclick = function () { toast('此浏览器不支持持久存储，请用「导出备份」'); };
-      return;
-    }
-    if (persistGranted) {
-      storageTip.textContent = '✓ 防清理保护已开启 · 仍建议定期导出备份';
-      storageTip.className = 'storageTip ok';
-      storageTip.onclick = function () { toast('防清理保护已开启'); };
-    } else {
-      storageTip.textContent = '⚠ 防清理保护未开启 · 点此开启';
-      storageTip.className = 'storageTip warn';
-      storageTip.onclick = requestPersist;
-    }
-  }
-
-  function requestPersist() {
-    if (!(navigator.storage && navigator.storage.persist)) {
-      toast('此浏览器不支持持久存储，请用「导出备份」');
-      return;
-    }
-    toast('正在申请防清理保护…');
-    navigator.storage.persisted().then(function (isPersisted) {
-      if (isPersisted) {
-        persistGranted = true; updateStorageTip(); toast('防清理保护已开启');
-        return;
-      }
-      return navigator.storage.persist().then(function (granted) {
-        persistGranted = !!granted;
-        updateStorageTip();
-        toast(granted ? '已开启防清理保护' : '浏览器未授权（本地文件/隐私模式常见）· 请用导出备份');
-      });
-    }).catch(function (err) {
-      updateStorageTip();
-      toast('申请失败：' + (err && err.name ? err.name : '未知') + ' · 请用导出备份');
-    });
-  }
-
-  /* ---------- 渲染 ---------- */
   function render() {
     monthLabel.textContent = viewYear + ' 年 ' + (viewMonth + 1) + ' 月';
     var firstWeekday = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
@@ -452,7 +314,7 @@
       cell.type = 'button';
       cell.className = 'cell';
       if (k === todayKey) cell.classList.add('today');
-      if (has && v > 0)      { cell.classList.add('win');  mSum += v; mWin++;  mDays++; }
+      if (has && v > 0) { cell.classList.add('win'); mSum += v; mWin++; mDays++; }
       else if (has && v < 0) { cell.classList.add('lose'); mSum += v; mLose++; mDays++; }
 
       var dEl = document.createElement('span');
@@ -468,7 +330,6 @@
         cell.appendChild(aEl);
       }
 
-      cell.setAttribute('aria-label', k + (has && v !== 0 ? '  ' + fmtNum(v) : '  无记录'));
       cell.addEventListener('click', (function (key) {
         return function () { openEditor(key); };
       })(k));
@@ -490,7 +351,6 @@
     footerEl.textContent = '本月 ' + mDays + ' 天 · 胜 ' + mWin + ' · 负 ' + mLose + '　|　累计记录 ' + tDays + ' 天';
   }
 
-  /* ---------- 键盘避让 ---------- */
   function syncKeyboard() {
     if (!window.visualViewport || modal.hidden) { sheet.style.transform = ''; return; }
     var vv = window.visualViewport;
@@ -504,7 +364,6 @@
   }
   window.addEventListener('resize', function () { if (!modal.hidden) syncKeyboard(); });
 
-  /* ---------- 编辑弹窗 ---------- */
   var editingKey = null;
   var scrollLockY = 0;
 
@@ -561,8 +420,6 @@
     persist();
     closeEditor();
     render();
-    updateBackupBanner();
-    if (!persistTried) requestPersist();
   }
 
   function deleteEntry() {
@@ -571,36 +428,40 @@
     persist();
     closeEditor();
     render();
-    updateBackupBanner();
   }
 
-  /* ---------- 导出 ---------- */
+  // 导出功能（包含微信分享）
   function exportBackup() {
-  var json = JSON.stringify(data, null, 2);
-  var filename = '进财记录备份_' + new Date().toISOString().slice(0, 10) + '.json';
-  
-  // 检查是否在咱们的套壳 App 里
-  if (window.AndroidShare) {
-      // 转成 base64 传给 Android
-      var blob = new Blob([json], {type: 'application/json'});
-      var reader = new FileReader();
-      reader.onload = function(e) {
-          var base64Data = e.target.result.split(',')[1];
-          window.AndroidShare.shareBackup(filename, base64Data);
-      };
-      reader.readAsDataURL(blob);
-  } else {
-      // 原来的网页下载逻辑，用于在电脑浏览器里测试
-      var blob = new Blob([json], { type: 'application/json' });
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-  }
-}
+    var keys = Object.keys(data).filter(function (k) {
+      return isFinite(Number(data[k])) && Number(data[k]) !== 0;
+    });
+    if (keys.length === 0) { toast('还没有记录，先记几笔吧'); return; }
 
-  /* ---------- 导入 ---------- */
+    var json = JSON.stringify(data, null, 2);
+    var filename = '盈亏记录备份_' + new Date().toISOString().slice(0, 10) + '.json';
+    var blob = new Blob([json], { type: 'application/json' });
+
+    // 如果在套壳 App 里，调用安卓原生分享
+    if (window.AndroidShare) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var base64Data = e.target.result.split(',')[1];
+            window.AndroidShare.shareBackup(filename, base64Data);
+        };
+        reader.readAsDataURL(blob);
+        return;
+    }
+
+    // 网页下载后备
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+    toast('已导出');
+  }
+
+  // 导入功能
   function importBackup(file) {
     var reader = new FileReader();
     reader.onload = function (e) {
@@ -625,7 +486,6 @@
       data = clean;
       persist();
       render();
-      updateBackupBanner();
       toast('已恢复 ' + count + ' 条记录');
     };
     reader.onerror = function () { toast('读取文件失败'); };
@@ -633,7 +493,6 @@
   }
 
   exportBtn.addEventListener('click', exportBackup);
-  bannerBtn.addEventListener('click', exportBackup);
   importBtn.addEventListener('click', function () { fileInput.click(); });
   fileInput.addEventListener('change', function () {
     var f = fileInput.files && fileInput.files[0];
@@ -641,16 +500,9 @@
     fileInput.value = '';
   });
 
-  /* ---------- 其它事件 ---------- */
-  prevBtn.addEventListener('click', function () {
-    viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } render();
-  });
-  nextBtn.addEventListener('click', function () {
-    viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } render();
-  });
-  todayBtn.addEventListener('click', function () {
-    var t = new Date(); viewYear = t.getFullYear(); viewMonth = t.getMonth(); render();
-  });
+  prevBtn.addEventListener('click', function () { viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } render(); });
+  nextBtn.addEventListener('click', function () { viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } render(); });
+  todayBtn.addEventListener('click', function () { var t = new Date(); viewYear = t.getFullYear(); viewMonth = t.getMonth(); render(); });
 
   saveBtn.addEventListener('click', commit);
   delBtn.addEventListener('click', deleteEntry);
@@ -680,15 +532,41 @@
     if (e.target === modal) closeEditor();
   });
 
-  /* ---------- 启动 ---------- */
-  render();
-  updateStorageTip();
-  updateBackupBanner();
-  if (navigator.storage && navigator.storage.persisted) {
-    navigator.storage.persisted().then(function (p) {
-      if (p) { persistGranted = true; updateStorageTip(); }
+  // 防清理提示
+  var persistGranted = false;
+  var persistTried = false;
+  function updateStorageTip() {
+    var supported = !!(navigator.storage && navigator.storage.persist);
+    if (!supported) {
+      storageTip.textContent = '⚠ 此浏览器不支持防清理保护';
+      storageTip.className = 'storageTip warn';
+      storageTip.onclick = function () { toast('请用导出备份保存数据'); };
+      return;
+    }
+    if (persistGranted) {
+      storageTip.textContent = '✓ 防清理保护已开启';
+      storageTip.className = 'storageTip ok';
+      storageTip.onclick = null;
+    } else {
+      storageTip.textContent = '⚠ 防清理保护未开启 · 点此开启';
+      storageTip.className = 'storageTip warn';
+      storageTip.onclick = requestPersist;
+    }
+  }
+  function requestPersist() {
+    if (!(navigator.storage && navigator.storage.persist)) return;
+    navigator.storage.persisted().then(function (isPersisted) {
+      if (isPersisted) { persistGranted = true; updateStorageTip(); toast('已开启'); return; }
+      return navigator.storage.persist().then(function (granted) {
+        persistGranted = !!granted;
+        updateStorageTip();
+        toast(granted ? '已开启防清理' : '未授权');
+      });
     }).catch(function () {});
   }
+
+  render();
+  updateStorageTip();
 })();
 </script>
 </body>
