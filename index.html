@@ -378,18 +378,6 @@
   }
 
   function updateBackupBanner() {
-    return; 
-    }
-
-    var days = daysBetween(nowTs, lastBackup);
-    var hasNew = lastChange > lastBackup;
-
-    if (hasNew && days >= BACKUP_REMIND_DAYS) {
-      bannerText.textContent = '上次备份是 ' + days + ' 天前，之后又有新记录。建议现在导出一份。';
-      banner.classList.add('show');
-    } else {
-      banner.classList.remove('show');
-    }
   }
 
   /* ---------- 防清理保护 ---------- */
