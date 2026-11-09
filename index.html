@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="每日盈亏">
+<title>每日盈亏记录</title>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  :root{
+    --card:#161b22; --card2:#1b222c; --line:#272e38;
+    --text:#e6edf3; --muted:#8b949e;
+    --green:#3fb950; --green-bg:rgba(63,185,80,.12);
+    --red:#f85149;   --red-bg:rgba(248,81,73,.12);
+    --gold:#e3b341;
+    --safe-b:env(safe-area-inset-bottom,0px);
+    --safe-t:env(safe-area-inset-top,0px);
+  }
+  html,body{min-height:100%;}
+  body{
+    margin:0;
+    background-color:#0d1117;
+    background-image:radial-gradient(900px 500px at 50% -15%, #1d2735 0%, transparent 65%);
+    background-repeat:no-repeat;
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    display:flex; justify-content:center;
+    padding:calc(14px + var(--safe-t)) 12px calc(28px + var(--safe-b));
+    overscroll-behavior-y:contain;
+  }
+  .app{width:100%;max-width:520px;}
+
+  /* 备份提醒横幅 */
+  .backupBanner{
+    display:none; align-items:center;gap:10px;
+    background:rgba(227,179,65,.12);border:1px solid rgba(227,179,65,.4);
+    border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:13px;line-height:1.4;
+  }
+  .backupBanner.show{display:flex;}
+  .backupBanner .btext{flex:1;color:var(--gold);}
+  .backupBanner button{
+    flex:none;background:var(--gold);color:#1a1205;border:none;border-radius:9px;
+    padding:8px 12px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;
+  }
+  .backupBanner button:active{filter:brightness(1.1);}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:0 4px;}
+  h1{font-size:19px;margin:0;letter-spacing:.5px;}
+  .sub{margin:3px 0 0;font-size:12px;color:var(--muted);}
+  .pill{background:var(--card2);border:1px solid var(--line);color:var(--text);
+        padding:9px 18px;border-radius:999px;font-size:14px;font-weight:600;cursor:pointer;
+        font-family:inherit;touch-action:manipulation;}
+  .pill:active{background:#252d38;}
+
+  .totals{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+  .tcard{background:linear-gradient(180deg,#1a212b,#151a21);border:1px solid var(--line);
+         border-radius:14px;padding:11px 13px;overflow:hidden;}
+  .tcard .lbl{font-size:12px;color:var(--muted);margin-bottom:5px;}
+  .tcard .val{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.3px;
+              white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .val.pos{color:var(--green);}
+  .val.neg{color:var(--red);}
+
+  .calendar{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:12px;}
+  .calbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .month{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;}
+  .navbtn{width:40px;height:40px;border-radius:11px;border:1px solid var(--line);
+          background:var(--card2);color:var(--text);font-size:22px;line-height:1;cursor:pointer;
+          display:flex;align-items:center;justify-content:center;padding-bottom:4px;font-family:inherit;}
+  .navbtn:active{background:#252d38;}
+  .weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:5px;}
+  .weekdays span{text-align:center;font-size:11px;color:var(--muted);padding:3px 0;}
+  .weekdays span:nth-child(6),.weekdays span:nth-child(7){color:#6b7280;}
+  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;}
+
+  .cell{position:relative;min-height:62px;border-radius:11px;border:1px solid var(--line);
+        background:#12171e;color:var(--text);
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+        padding:4px 1px;font-family:inherit;cursor:pointer;overflow:hidden;
+        transition:transform .1s ease,background .15s ease,border-color .15s ease;
+        touch-action:manipulation;}
+  .cell:active{transform:scale(.93);}
+  .cell .d{font-size:11px;color:var(--muted);line-height:1;font-variant-numeric:tabular-nums;}
+  .cell .amt{font-weight:700;line-height:1.05;font-variant-numeric:tabular-nums;white-space:nowrap;max-width:100%;}
+  .cell.win{background:var(--green-bg);border-color:rgba(63,185,80,.35);}
+  .cell.win .d{color:rgba(63,185,80,.8);}
+  .cell.win .amt{color:var(--green);}
+  .cell.lose{background:var(--red-bg);border-color:rgba(248,81,73,.35);}
+  .cell.lose .d{color:rgba(248,81,73,.8);}
+  .cell.lose .amt{color:var(--red);}
+  .cell.today{box-shadow:inset 0 0 0 2px var(--gold);}
+  .cell.empty{background:transparent;border-color:transparent;pointer-events:none;cursor:default;}
+
+  .footer{margin-top:10px;text-align:center;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;line-height:1.5;}
+
+  .toolbar{display:flex;gap:10px;margin-top:12px;}
+  .toolbar button{
+    flex:1;min-height:46px;border-radius:12px;border:1px solid var(--line);
+    background:var(--card2);color:var(--text);font-size:14px;font-weight:600;
+    font-family:inherit;cursor:pointer;touch-action:manipulation;
+    display:flex;align-items:center;justify-content:center;gap:6px;
+  }
+  .toolbar button:active{filter:brightness(1.3);}
+  .toolbar .export{color:var(--gold);}
+  .storageTip{margin-top:10px;text-align:center;font-size:12px;line-height:1.5;color:var(--muted);padding:0 6px;}
+  .storageTip.ok{color:var(--green);}
+  .storageTip.warn{color:var(--gold);cursor:pointer;}
+
+  .modal-backdrop{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.6);
+    -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+    display:flex;align-items:flex-end;justify-content:center;}
+  .modal-backdrop[hidden]{display:none;}
+  .modal{width:100%;max-width:520px;background:#161b22;border:1px solid var(--line);border-bottom:none;
+    border-radius:20px 20px 0 0;padding:10px 18px calc(18px + var(--safe-b));
+    box-shadow:0 -18px 50px rgba(0,0,0,.55);
+    animation:sheetUp .22s cubic-bezier(.22,.9,.3,1);
+    transition:transform .18s ease-out;will-change:transform;}
+  @keyframes sheetUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  .grabber{width:38px;height:4px;border-radius:99px;background:#39424f;margin:0 auto 12px;}
+  .modal-date{font-size:14px;color:var(--text);text-align:center;margin-bottom:14px;font-weight:600;}
+  .inputrow{display:flex;gap:8px;}
+  .inputrow input{flex:1;min-width:0;padding:13px 8px;font-size:24px;font-weight:700;text-align:center;
+    background:#0d1117;border:1px solid var(--line);border-radius:12px;color:var(--text);
+    outline:none;font-variant-numeric:tabular-nums;letter-spacing:.5px;font-family:inherit;}
+  .inputrow input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(227,179,65,.15);}
+  .inputrow input.pos{color:var(--green);}
+  .inputrow input.neg{color:var(--red);}
+  .signbtn{width:58px;border-radius:12px;border:1px solid var(--line);background:var(--card2);
+    color:var(--text);font-size:22px;cursor:pointer;font-family:inherit;touch-action:manipulation;}
+  .signbtn:active{background:#252d38;}
+  .hint{font-size:12px;color:var(--muted);text-align:center;margin-top:9px;min-height:16px;}
+  .hint.error{color:var(--red);}
+  .actions{display:flex;gap:8px;margin-top:13px;}
+  .actions button{flex:1;min-height:48px;padding:10px 4px;border-radius:12px;border:1px solid var(--line);
+    background:var(--card2);color:var(--text);font-size:15px;font-weight:600;cursor:pointer;
+    font-family:inherit;touch-action:manipulation;}
+  .actions button:active{filter:brightness(1.3);}
+  .actions .primary{background:var(--gold);color:#1a1205;border-color:transparent;flex:1.3;}
+  .actions .danger{color:var(--red);}
+
+  .toast{position:fixed;left:50%;bottom:calc(26px + var(--safe-b));transform:translate(-50%,12px);
+    background:#242c37;color:var(--text);border:1px solid var(--line);padding:11px 18px;border-radius:12px;
+    font-size:14px;font-weight:600;z-index:80;opacity:0;pointer-events:none;
+    transition:opacity .2s ease,transform .2s ease;max-width:calc(100vw - 40px);text-align:center;
+    box-shadow:0 8px 24px rgba(0,0,0,.5);line-height:1.4;}
+  .toast.show{opacity:1;transform:translate(-50%,0);}
+
+  @media (max-width:380px){
+    .cell{min-height:54px;border-radius:9px;}
+    .grid,.weekdays{gap:4px;}
+    .calendar{padding:10px;}
+    .tcard .val{font-size:19px;}
+    .tcard{padding:10px 11px;}
+    h1{font-size:17px;}
+    .cell .d{font-size:10px;}
+    .toolbar button{font-size:13px;min-height:44px;}
+  }
+  @media (min-width:600px){
+    .modal-backdrop{align-items:center;padding:20px;}
+    .modal{max-width:360px;border-radius:16px;border-bottom:1px solid var(--line);padding:18px;animation:pop .18s ease-out;}
+    .grabber{display:none;}
+    @keyframes pop{from{transform:scale(.94);opacity:0;}to{transform:scale(1);opacity:1;}}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="backupBanner" id="backupBanner">
+    <div class="btext" id="bannerText"></div>
+    <button type="button" id="bannerBtn">立即备份</button>
+  </div>
+
+  <div class="topbar">
+    <div>
+      <h1>每日盈亏</h1>
+      <p class="sub">点击日期填写当天赢输</p>
+    </div>
+    <button class="pill" id="todayBtn" type="button">今天</button>
+  </div>
+
+  <div class="totals">
+    <div class="tcard"><div class="lbl">本月合计</div><div class="val" id="monthTotal">0</div></div>
+    <div class="tcard"><div class="lbl">总计</div><div class="val" id="allTotal">0</div></div>
+  </div>
+
+  <div class="calendar">
+    <div class="calbar">
+      <button class="navbtn" id="prevBtn" type="button" aria-label="上个月">‹</button>
+      <div class="month" id="monthLabel"></div>
+      <button class="navbtn" id="nextBtn" type="button" aria-label="下个月">›</button>
+    </div>
+    <div class="weekdays"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+    <div class="grid" id="grid"></div>
+    <div class="footer" id="footerInfo"></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="export" id="exportBtn" type="button">⬇ 导出备份</button>
+    <button id="importBtn" type="button">⬆ 导入备份</button>
+  </div>
+  <div class="storageTip" id="storageTip"></div>
+</div>
+
+<input type="file" id="fileInput" accept="application/json,.json" hidden>
+<div class="toast" id="toast"></div>
+
+<div class="modal-backdrop" id="modal" hidden>
+  <div class="modal" id="sheet" role="dialog" aria-modal="true" aria-labelledby="modalDate">
+    <div class="grabber"></div>
+    <div class="modal-date" id="modalDate"></div>
+    <div class="inputrow">
+      <input id="amountInput" type="text" inputmode="decimal" placeholder="0.00"
+             autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="done">
+      <button class="signbtn" id="signBtn" type="button" title="正负切换">±</button>
+    </div>
+    <div class="hint" id="hintEl">正数为赢 · 负数为输</div>
+    <div class="actions">
+      <button class="danger" id="delBtn" type="button">删除</button>
+      <button id="cancelBtn" type="button">取消</button>
+      <button class="primary" id="saveBtn" type="button">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var KEY = 'dailyWinLoss.v1';
+  var BACKUP_TS_KEY = 'dailyWinLoss.lastBackup';
+  var CHANGE_TS_KEY = 'dailyWinLoss.lastChange';
+  var HINT = '正数为赢 · 负数为输';
+  var BACKUP_REMIND_DAYS = 5;
+
+  var gridEl       = document.getElementById('grid');
+  var monthLabel   = document.getElementById('monthLabel');
+  var monthTotalEl = document.getElementById('monthTotal');
+  var allTotalEl   = document.getElementById('allTotal');
+  var footerEl     = document.getElementById('footerInfo');
+  var modal        = document.getElementById('modal');
+  var sheet        = document.getElementById('sheet');
+  var modalDate    = document.getElementById('modalDate');
+  var amountInput  = document.getElementById('amountInput');
+  var hintEl       = document.getElementById('hintEl');
+  var delBtn       = document.getElementById('delBtn');
+  var saveBtn      = document.getElementById('saveBtn');
+  var cancelBtn    = document.getElementById('cancelBtn');
+  var signBtn      = document.getElementById('signBtn');
+  var prevBtn      = document.getElementById('prevBtn');
+  var nextBtn      = document.getElementById('nextBtn');
+  var todayBtn     = document.getElementById('todayBtn');
+  var exportBtn    = document.getElementById('exportBtn');
+  var importBtn    = document.getElementById('importBtn');
+  var fileInput    = document.getElementById('fileInput');
+  var storageTip   = document.getElementById('storageTip');
+  var toastEl      = document.getElementById('toast');
+  var banner       = document.getElementById('backupBanner');
+  var bannerText   = document.getElementById('bannerText');
+  var bannerBtn    = document.getElementById('bannerBtn');
+
+  /* ---------- PWA manifest（动态生成，兼容 data/blob 限制） ---------- */
+  (function setupManifest() {
+    try {
+      var iconSvg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">' +
+        '<rect width="512" height="512" rx="108" fill="#0d1117"/>' +
+        '<rect x="96" y="128" width="320" height="288" rx="36" fill="#1b222c" stroke="#e3b341" stroke-width="12"/>' +
+        '<rect x="96" y="128" width="320" height="72" rx="36" fill="#e3b341"/>' +
+        '<text x="256" y="330" font-family="Arial,Helvetica,sans-serif" font-size="132" font-weight="700" fill="#3fb950" text-anchor="middle">+</text>' +
+        '<text x="256" y="392" font-family="Arial,Helvetica,sans-serif" font-size="44" fill="#8b949e" text-anchor="middle">盈亏</text>' +
+        '</svg>';
+      var iconUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(iconSvg);
+
+      var manifest = {
+        name: '每日盈亏记录',
+        short_name: '每日盈亏',
+        description: '日历式每日盈亏记录，本地保存，可备份导出',
+        start_url: '.',
+        scope: '.',
+        display: 'standalone',
+        orientation: 'portrait',
+        background_color: '#0d1117',
+        theme_color: '#0d1117',
+        icons: [
+          { src: iconUrl, sizes: '192x192', type: 'image/svg+xml', purpose: 'any' },
+          { src: iconUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any' }
+        ]
+      };
+      var blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+      var link = document.createElement('link');
+      link.rel = 'manifest';
+      link.href = URL.createObjectURL(blob);
+      document.head.appendChild(link);
+
+      var appleIcon = document.createElement('link');
+      appleIcon.rel = 'apple-touch-icon';
+      appleIcon.href = iconUrl;
+      document.head.appendChild(appleIcon);
+    } catch (e) {}
+  })();
+
+  /* ---------- 数据 ---------- */
+  var data = {};
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) {
+      var parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) data = parsed;
+    }
+  } catch (e) { data = {}; }
+
+  function persist() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(data));
+      localStorage.setItem(CHANGE_TS_KEY, String(Date.now()));
+    } catch (e) {}
+  }
+
+  /* ---------- 工具 ---------- */
+  var now = new Date();
+  var viewYear = now.getFullYear();
+  var viewMonth = now.getMonth();
+
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+  function dateKey(y, m, d) { return y + '-' + pad2(m + 1) + '-' + pad2(d); }
+  function round2(n) { return Math.round(n * 100) / 100; }
+  function daysBetween(a, b) { return Math.floor((a - b) / 86400000); }
+
+  function parseAmount(str) {
+    var s = String(str).replace(/[\s,，]/g, '');
+    if (s === '') return null;
+    if (!/^[+-]?(\d+(\.\d*)?|\.\d+)$/.test(s)) return NaN;
+    return parseFloat(s);
+  }
+
+  function fmtNum(n) {
+    var abs = Math.abs(n);
+    var s = Number.isInteger(abs)
+      ? abs.toLocaleString('en-US')
+      : abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return (n > 0 ? '+' : n < 0 ? '-' : '') + s;
+  }
+
+  function fitFont(el) {
+    var len = el.textContent.length;
+    var narrow = window.innerWidth < 380;
+    var size;
+    if (len >= 9)      size = narrow ? 8   : 9;
+    else if (len >= 7) size = narrow ? 9.5 : 10.5;
+    else if (len >= 5) size = narrow ? 11  : 12;
+    else               size = narrow ? 12  : 13;
+    el.style.fontSize = size + 'px';
+  }
+
+  function setTotal(el, v) {
+    el.textContent = fmtNum(v);
+    el.classList.remove('pos', 'neg');
+    if (v > 0) el.classList.add('pos');
+    else if (v < 0) el.classList.add('neg');
+  }
+
+  var toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2600);
+  }
+
+  /* ---------- 备份提醒 ---------- */
+  function countRecords() {
+    var c = 0;
+    for (var k in data) {
+      if (!Object.prototype.hasOwnProperty.call(data, k)) continue;
+      var v = Number(data[k]);
+      if (isFinite(v) && v !== 0) c++;
+    }
+    return c;
+  }
+
+  function updateBackupBanner() {
+    var total = countRecords();
+    if (total === 0) { banner.classList.remove('show'); return; }
+
+    var lastBackup = Number(localStorage.getItem(BACKUP_TS_KEY) || 0);
+    var lastChange = Number(localStorage.getItem(CHANGE_TS_KEY) || 0);
+    var nowTs = Date.now();
+
+    if (!lastBackup) {
+      bannerText.textContent = '已有 ' + total + ' 条记录，还没备份过。备份文件存到手机里，清理浏览器也不丢。';
+      banner.classList.add('show');
+      return;
+    }
+
+    var days = daysBetween(nowTs, lastBackup);
+    var hasNew = lastChange > lastBackup;
+
+    if (hasNew && days >= BACKUP_REMIND_DAYS) {
+      bannerText.textContent = '上次备份是 ' + days + ' 天前，之后又有新记录。建议现在导出一份。';
+      banner.classList.add('show');
+    } else {
+      banner.classList.remove('show');
+    }
+  }
+
+  /* ---------- 防清理保护 ---------- */
+  var persistGranted = false;
+  var persistTried = false;
+
+  function updateStorageTip() {
+    var supported = !!(navigator.storage && navigator.storage.persist);
+    if (!supported) {
+      storageTip.textContent = '⚠ 此浏览器不支持防清理保护 · 请用「导出备份」保存数据';
+      storageTip.className = 'storageTip warn';
+      storageTip.onclick = function () { toast('此浏览器不支持持久存储，请用「导出备份」'); };
+      return;
+    }
+    if (persistGranted) {
+      storageTip.textContent = '✓ 防清理保护已开启 · 仍建议定期导出备份';
+      storageTip.className = 'storageTip ok';
+      storageTip.onclick = function () { toast('防清理保护已开启'); };
+    } else {
+      storageTip.textContent = '⚠ 防清理保护未开启 · 点此开启';
+      storageTip.className = 'storageTip warn';
+      storageTip.onclick = requestPersist;
+    }
+  }
+
+  function requestPersist() {
+    if (!(navigator.storage && navigator.storage.persist)) {
+      toast('此浏览器不支持持久存储，请用「导出备份」');
+      return;
+    }
+    toast('正在申请防清理保护…');
+    navigator.storage.persisted().then(function (isPersisted) {
+      if (isPersisted) {
+        persistGranted = true; updateStorageTip(); toast('防清理保护已开启');
+        return;
+      }
+      return navigator.storage.persist().then(function (granted) {
+        persistGranted = !!granted;
+        updateStorageTip();
+        toast(granted ? '已开启防清理保护' : '浏览器未授权（本地文件/隐私模式常见）· 请用导出备份');
+      });
+    }).catch(function (err) {
+      updateStorageTip();
+      toast('申请失败：' + (err && err.name ? err.name : '未知') + ' · 请用导出备份');
+    });
+  }
+
+  /* ---------- 渲染 ---------- */
+  function render() {
+    monthLabel.textContent = viewYear + ' 年 ' + (viewMonth + 1) + ' 月';
+    var firstWeekday = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
+    var daysInMonth  = new Date(viewYear, viewMonth + 1, 0).getDate();
+    var t = new Date();
+    var todayKey = dateKey(t.getFullYear(), t.getMonth(), t.getDate());
+
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < firstWeekday; i++) {
+      var ph = document.createElement('div');
+      ph.className = 'cell empty';
+      frag.appendChild(ph);
+    }
+
+    var mSum = 0, mWin = 0, mLose = 0, mDays = 0;
+
+    for (var d = 1; d <= daysInMonth; d++) {
+      var k = dateKey(viewYear, viewMonth, d);
+      var has = Object.prototype.hasOwnProperty.call(data, k);
+      var v = has ? Number(data[k]) : 0;
+      if (!isFinite(v)) v = 0;
+
+      var cell = document.createElement('button');
+      cell.type = 'button';
+      cell.className = 'cell';
+      if (k === todayKey) cell.classList.add('today');
+      if (has && v > 0)      { cell.classList.add('win');  mSum += v; mWin++;  mDays++; }
+      else if (has && v < 0) { cell.classList.add('lose'); mSum += v; mLose++; mDays++; }
+
+      var dEl = document.createElement('span');
+      dEl.className = 'd';
+      dEl.textContent = d;
+      cell.appendChild(dEl);
+
+      if (has && v !== 0) {
+        var aEl = document.createElement('span');
+        aEl.className = 'amt';
+        aEl.textContent = fmtNum(v);
+        fitFont(aEl);
+        cell.appendChild(aEl);
+      }
+
+      cell.setAttribute('aria-label', k + (has && v !== 0 ? '  ' + fmtNum(v) : '  无记录'));
+      cell.addEventListener('click', (function (key) {
+        return function () { openEditor(key); };
+      })(k));
+      frag.appendChild(cell);
+    }
+
+    gridEl.innerHTML = '';
+    gridEl.appendChild(frag);
+    setTotal(monthTotalEl, round2(mSum));
+
+    var total = 0, tDays = 0;
+    for (var key in data) {
+      if (!Object.prototype.hasOwnProperty.call(data, key)) continue;
+      var n = Number(data[key]);
+      if (!isFinite(n) || n === 0) continue;
+      total += n; tDays++;
+    }
+    setTotal(allTotalEl, round2(total));
+    footerEl.textContent = '本月 ' + mDays + ' 天 · 胜 ' + mWin + ' · 负 ' + mLose + '　|　累计记录 ' + tDays + ' 天';
+  }
+
+  /* ---------- 键盘避让 ---------- */
+  function syncKeyboard() {
+    if (!window.visualViewport || modal.hidden) { sheet.style.transform = ''; return; }
+    var vv = window.visualViewport;
+    var kb = window.innerHeight - vv.height - vv.offsetTop;
+    kb = Math.max(0, Math.round(kb));
+    sheet.style.transform = kb > 0 ? 'translateY(-' + kb + 'px)' : '';
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncKeyboard);
+    window.visualViewport.addEventListener('scroll', syncKeyboard);
+  }
+  window.addEventListener('resize', function () { if (!modal.hidden) syncKeyboard(); });
+
+  /* ---------- 编辑弹窗 ---------- */
+  var editingKey = null;
+  var scrollLockY = 0;
+
+  function setHint(text, isError) { hintEl.textContent = text; hintEl.classList.toggle('error', !!isError); }
+
+  function updateInputColor() {
+    var v = parseAmount(amountInput.value);
+    amountInput.classList.remove('pos', 'neg');
+    if (v !== null && !isNaN(v)) {
+      if (v > 0) amountInput.classList.add('pos');
+      else if (v < 0) amountInput.classList.add('neg');
+    }
+  }
+
+  function lockScroll() { scrollLockY = window.scrollY || 0; document.body.style.overflow = 'hidden'; }
+  function unlockScroll() { document.body.style.overflow = ''; window.scrollTo(0, scrollLockY); }
+
+  function openEditor(k) {
+    editingKey = k;
+    var p = k.split('-');
+    var y = +p[0], m = +p[1], d = +p[2];
+    var wd = '日一二三四五六'[new Date(y, m - 1, d).getDay()];
+    modalDate.textContent = y + ' 年 ' + m + ' 月 ' + d + ' 日 · 周' + wd;
+
+    var has = Object.prototype.hasOwnProperty.call(data, k);
+    amountInput.value = has ? String(data[k]) : '';
+    updateInputColor();
+    delBtn.style.display = has ? '' : 'none';
+    setHint(HINT, false);
+
+    lockScroll();
+    modal.hidden = false;
+    sheet.style.transform = '';
+    try { amountInput.focus({ preventScroll: true }); amountInput.select(); }
+    catch (e) { amountInput.focus(); }
+    setTimeout(syncKeyboard, 60);
+    setTimeout(syncKeyboard, 260);
+  }
+
+  function closeEditor() {
+    modal.hidden = true;
+    sheet.style.transform = '';
+    editingKey = null;
+    amountInput.blur();
+    unlockScroll();
+  }
+
+  function commit() {
+    if (!editingKey) return;
+    var val = parseAmount(amountInput.value);
+    if (isNaN(val)) { setHint('请输入有效数字，例如 300 或 -150', true); return; }
+    if (val === null || val === 0) delete data[editingKey];
+    else data[editingKey] = round2(val);
+    persist();
+    closeEditor();
+    render();
+    updateBackupBanner();
+    if (!persistTried) requestPersist();
+  }
+
+  function deleteEntry() {
+    if (!editingKey) return;
+    delete data[editingKey];
+    persist();
+    closeEditor();
+    render();
+    updateBackupBanner();
+  }
+
+  /* ---------- 导出 ---------- */
+  function exportBackup() {
+    var keys = Object.keys(data).filter(function (k) {
+      return isFinite(Number(data[k])) && Number(data[k]) !== 0;
+    });
+    if (keys.length === 0) { toast('还没有记录，先记几笔吧'); return; }
+
+    var json = JSON.stringify(data, null, 2);
+    var blob = new Blob([json], { type: 'application/json' });
+    var filename = '盈亏记录备份_' + new Date().toISOString().slice(0, 10) + '.json';
+
+    function markBackedUp() {
+      try {
+        localStorage.setItem(BACKUP_TS_KEY, String(Date.now()));
+        updateBackupBanner();
+      } catch (e) {}
+    }
+
+    try {
+      if (navigator.canShare && window.File) {
+        var file = new File([blob], filename, { type: 'application/json' });
+        if (navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], title: '盈亏记录备份', text: '共 ' + keys.length + ' 条记录' })
+            .then(function () { markBackedUp(); toast('备份已保存'); })
+            .catch(function (err) {
+              if (err && err.name === 'AbortError') return;
+              fallbackDownload(blob, filename);
+              markBackedUp();
+            });
+          return;
+        }
+      }
+    } catch (e) {}
+
+    fallbackDownload(blob, filename);
+    markBackedUp();
+  }
+
+  function fallbackDownload(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename; a.rel = 'noopener';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+    toast('已导出 · 请到下载列表查看');
+  }
+
+  /* ---------- 导入 ---------- */
+  function importBackup(file) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var obj;
+      try { obj = JSON.parse(e.target.result); }
+      catch (err) { toast('文件不是有效的备份'); return; }
+      if (!obj || typeof obj !== 'object' || Array.isArray(obj)) { toast('文件不是有效的备份'); return; }
+
+      var clean = {}, count = 0;
+      for (var k in obj) {
+        if (!Object.prototype.hasOwnProperty.call(obj, k)) continue;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) continue;
+        var v = Number(obj[k]);
+        if (!isFinite(v) || v === 0) continue;
+        clean[k] = round2(v); count++;
+      }
+      if (count === 0) { toast('备份文件里没有有效记录'); return; }
+
+      var ok = window.confirm('备份中包含 ' + count + ' 条记录。\n导入后将覆盖当前全部数据，确定继续吗？');
+      if (!ok) return;
+
+      data = clean;
+      persist();
+      render();
+      updateBackupBanner();
+      toast('已恢复 ' + count + ' 条记录');
+    };
+    reader.onerror = function () { toast('读取文件失败'); };
+    reader.readAsText(file);
+  }
+
+  exportBtn.addEventListener('click', exportBackup);
+  bannerBtn.addEventListener('click', exportBackup);
+  importBtn.addEventListener('click', function () { fileInput.click(); });
+  fileInput.addEventListener('change', function () {
+    var f = fileInput.files && fileInput.files[0];
+    if (f) importBackup(f);
+    fileInput.value = '';
+  });
+
+  /* ---------- 其它事件 ---------- */
+  prevBtn.addEventListener('click', function () {
+    viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; } render();
+  });
+  nextBtn.addEventListener('click', function () {
+    viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; } render();
+  });
+  todayBtn.addEventListener('click', function () {
+    var t = new Date(); viewYear = t.getFullYear(); viewMonth = t.getMonth(); render();
+  });
+
+  saveBtn.addEventListener('click', commit);
+  delBtn.addEventListener('click', deleteEntry);
+  cancelBtn.addEventListener('click', closeEditor);
+
+  signBtn.addEventListener('click', function () {
+    var v = amountInput.value.trim();
+    if (v === '') return;
+    if (v.charAt(0) === '-') amountInput.value = v.slice(1);
+    else if (v.charAt(0) === '+') amountInput.value = '-' + v.slice(1);
+    else amountInput.value = '-' + v;
+    updateInputColor();
+    amountInput.focus({ preventScroll: true });
+  });
+
+  amountInput.addEventListener('input', function () {
+    updateInputColor();
+    if (hintEl.classList.contains('error')) setHint(HINT, false);
+  });
+  amountInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); commit(); }
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !modal.hidden) closeEditor();
+  });
+  modal.addEventListener('click', function (e) {
+    if (e.target === modal) closeEditor();
+  });
+
+  /* ---------- 启动 ---------- */
+  render();
+  updateStorageTip();
+  updateBackupBanner();
+  if (navigator.storage && navigator.storage.persisted) {
+    navigator.storage.persisted().then(function (p) {
+      if (p) { persistGranted = true; updateStorageTip(); }
+    }).catch(function () {});
+  }
+})();
+</script>
+</body>
+</html>
