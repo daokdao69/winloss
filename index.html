@@ -169,10 +169,6 @@
 </head>
 <body>
 <div class="app">
-  <div class="backupBanner" id="backupBanner">
-    <div class="btext" id="bannerText"></div>
-    <button type="button" id="bannerBtn">立即备份</button>
-  </div>
 
   <div class="topbar">
     <div>
@@ -382,6 +378,7 @@
   }
 
   function updateBackupBanner() {
+    return; 
     var total = countRecords();
     if (total === 0) { banner.classList.remove('show'); return; }
 
