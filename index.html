@@ -379,17 +379,6 @@
 
   function updateBackupBanner() {
     return; 
-    var total = countRecords();
-    if (total === 0) { banner.classList.remove('show'); return; }
-
-    var lastBackup = Number(localStorage.getItem(BACKUP_TS_KEY) || 0);
-    var lastChange = Number(localStorage.getItem(CHANGE_TS_KEY) || 0);
-    var nowTs = Date.now();
-
-    if (!lastBackup) {
-      bannerText.textContent = '已有 ' + total + ' 条记录，还没备份过。备份文件存到手机里，清理浏览器也不丢。';
-      banner.classList.add('show');
-      return;
     }
 
     var days = daysBetween(nowTs, lastBackup);
