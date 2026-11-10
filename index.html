@@ -438,7 +438,7 @@
     if (keys.length === 0) { toast('还没有记录，先记几笔吧'); return; }
 
     var json = JSON.stringify(data, null, 2);
-    var filename = '盈亏记录备份_' + new Date().toISOString().slice(0, 10) + '.json';
+    var filename = '进财记录备份_' + new Date().toISOString().slice(0, 10) + '.json';
     var blob = new Blob([json], { type: 'application/json' });
 
     // 如果在套壳 App 里，调用安卓原生分享
